@@ -7,10 +7,6 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import javax.jdo.PersistenceManager;
 
 public class crawler
 {
@@ -20,31 +16,14 @@ public class crawler
     @SuppressWarnings("finally")
     public static String getReports()
     {
-        PersistenceManager persistenceManager = PMF.get().getPersistenceManager();
-
         try
         {
+            // TODO add support for getting reports from other dates
+            // TODO Either by parsing index.html or by saving the newest parsed date and try to fetch all date between that and now
             URL url = new URL("http://www.politi.dk/Koebenhavn/da/lokalnyt/Doegnrapporter/doegnrapport_220410.htm");
             BufferedReader reader = new BufferedReader(new InputStreamReader(url.openStream()));
-            String line;
-
-            while ((line = reader.readLine()) != null)
-            {
-                // log.warning("line: " + line);
-                Pattern reportPattern = Pattern.compile("Articlewithindexpagecontrol_XMLliste1");
-                Matcher reportMatcher = reportPattern.matcher(line);
-                if (reportMatcher.find())
-                {
-                    log.warning("we found the report line");
-                    String reports[] = line.split("<h3>");
-                    log.warning("found " + reports.length + "reports");
-                    for (String report : reports)
-                    {
-
-                    }
-                }
-            }
-            reader.close();
+            ReportPage reportPage = new ReportPage(reader);
+            reportPage.parseAndStore();
 
         } catch (MalformedURLException e)
         {

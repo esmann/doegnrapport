@@ -1,83 +1,58 @@
 package dk.esmann.doegnrapport.server;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.Locale;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.logging.Logger;
 
 import javax.jdo.annotations.IdGeneratorStrategy;
+import javax.jdo.annotations.Inheritance;
+import javax.jdo.annotations.InheritanceStrategy;
+import javax.jdo.annotations.NotPersistent;
 import javax.jdo.annotations.PersistenceCapable;
 import javax.jdo.annotations.Persistent;
 import javax.jdo.annotations.PrimaryKey;
 
+import com.google.appengine.api.datastore.GeoPt;
 import com.google.appengine.api.datastore.Key;
+import com.google.appengine.api.datastore.Text;
 
 @PersistenceCapable
-public class Report
+@Inheritance(strategy = InheritanceStrategy.SUBCLASS_TABLE)
+public abstract class Report
 {
+
+    protected final Logger log = Logger.getLogger(this.getClass().getName());
 
     @PrimaryKey
     @Persistent(valueStrategy = IdGeneratorStrategy.IDENTITY)
     private Key key;
 
     @Persistent
-    private Date date;
+    protected Date date;
 
     @Persistent
-    private String title;
+    protected String title;
 
     @Persistent
-    private String location;
+    protected String locationDescription;
 
     @Persistent
-    private String description;
+    protected Text description;
 
     @Persistent
-    private ReportType type;
+    protected ReportType type;
 
-    public Report(String title, String date, String content)
+    @Persistent
+    protected GeoPt location;
+
+    @NotPersistent
+    protected String report;
+
+    public Report(String report)
     {
+        this.report = report;
     }
 
-    public void parsePoliceReport(String report)
-    {
-        Pattern pattern = Pattern.compile("<a.*?>(.*?)</a></h3><br/>(.*?)<BR><BR>(.*?)<a");
-        Matcher matcher = pattern.matcher(report);
-        if (matcher.find())
-        {
-            Report reportObject = new Report(matcher.group(1), matcher.group(2), matcher.group(3));
-            String titleParts[] = matcher.group(1).split(", ");
-            this.title = titleParts[0];
-            this.type = getTypeFromTitle(titleParts[0]);
-            this.location = titleParts[1];
-            this.date = getDateFromString(matcher.group(2));
-            this.description = matcher.group(3);
-        }
-    }
-
-    private Date getDateFromString(String date)
-    {
-        Locale locale = new Locale("da", "DK");
-        SimpleDateFormat parser = new SimpleDateFormat("EEE 'den' dd. MMMM yyyy 'kl.' HHmm", locale);
-        try
-        {
-            Date newDate = parser.parse(date);
-            return newDate;
-        } catch (ParseException e)
-        {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
-        return new Date();
-
-    }
-
-    private ReportType getTypeFromTitle(String string)
-    {
-        return ReportType.ANDET;
-    }
+    public abstract void parseAndStore();
 
     public Key getKey()
     {
@@ -109,22 +84,22 @@ public class Report
         this.title = title;
     }
 
-    public String getLocation()
+    public String getLocationDescription()
     {
-        return location;
+        return locationDescription;
     }
 
-    public void setLocation(String location)
+    public void setLocationDescription(String location)
     {
-        this.location = location;
+        this.locationDescription = location;
     }
 
-    public String getDescription()
+    public Text getDescription()
     {
         return description;
     }
 
-    public void setDescription(String description)
+    public void setDescription(Text description)
     {
         this.description = description;
     }
@@ -143,12 +118,6 @@ public class Report
     public String toString()
     {
         return "Report [date=" + date + ", description=" + description + ", key=" + key + ", location=" + location + ", title=" + title + ", type=" + type + "]";
-    }
-
-    public static void main(String[] args)
-    {
-        Report report = new Report("Røveri mod person, Hovedbanegården", "torsdag den 22. april 2010 kl. 2235.", "empty");
-        System.out.println(report.toString());
     }
 
 }
