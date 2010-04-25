@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.URL;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.Locale;
 import java.util.Map;
@@ -88,6 +89,9 @@ public class PoliceReport extends Report
     @SuppressWarnings("unchecked")
     private GeoPt getLocation()
     {
+        // TODO fetch the reader content as a string
+        // TODO parse that string
+        // TODO Figure out how to get the fscking data out of the strange linkedmap structure that jackson creates
         // TODO add support for other communities than Copenhagen.
         try
         {
@@ -97,10 +101,12 @@ public class PoliceReport extends Report
             log.info("parsed json");
             if (map.get("status").equals("OK"))
             {
-                Map<String, Object> results = (Map<String, Object>) map.get("results");
-                if (results.containsKey("geometry"))
+                ArrayList results = (ArrayList) map.get("results");
+                for (Object result : results)
                 {
-                    log.info("Found geometry");
+
+                    if (result.containsKey("geometry"))
+                        log.info("Found geometry");
                     Map<String, Object> geometry = (Map<String, Object>) map.get("geometry");
                     if (geometry.containsKey("location"))
                     {
