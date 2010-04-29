@@ -1,13 +1,13 @@
 package dk.esmann.doegnrapport.server;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.URL;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.Locale;
-import java.util.Map;
 import java.util.logging.Level;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -15,7 +15,9 @@ import java.util.regex.Pattern;
 import javax.jdo.PersistenceManager;
 import javax.jdo.annotations.PersistenceCapable;
 
-import org.codehaus.jackson.map.ObjectMapper;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import com.google.appengine.api.datastore.GeoPt;
 import com.google.appengine.api.datastore.Text;
@@ -86,46 +88,49 @@ public class PoliceReport extends Report
 
     }
 
-    @SuppressWarnings("unchecked")
     private GeoPt getLocation()
     {
-        // TODO fetch the reader content as a string
-        // TODO parse that string
-        // TODO Figure out how to get the fscking data out of the strange linkedmap structure that jackson creates
+        GeoPt location = new GeoPt(0F, 0F);
         // TODO add support for other communities than Copenhagen.
         try
         {
             URL url = new URL("http://maps.google.com/maps/api/geocode/json?address=" + locationDescription + ",copenhagen,denmark&sensor=false");
-            ObjectMapper mapper = new ObjectMapper();
-            Map<String, Object> map = (Map<String, Object>) mapper.readValue(url, Object.class);
-            log.info("parsed json");
-            if (map.get("status").equals("OK"))
-            {
-                ArrayList results = (ArrayList) map.get("results");
-                for (Object result : results)
-                {
+            BufferedReader reader = new BufferedReader(new InputStreamReader(url.openStream()));
 
-                    if (result.containsKey("geometry"))
-                        log.info("Found geometry");
-                    Map<String, Object> geometry = (Map<String, Object>) map.get("geometry");
-                    if (geometry.containsKey("location"))
-                    {
-                        log.info("Found location");
-                        Map<String, Object> location = (Map<String, Object>) geometry.get("location");
-                        log.info("lat: " + location.get("lat") + " lng: " + location.get("lng"));
-                    }
-                }
+            String line, jsonString = "";
+            while ((line = reader.readLine()) != null)
+            {
+                jsonString += line;
             }
-            map.isEmpty();
+            JSONObject jsonObject = new JSONObject(jsonString);
+            if (jsonObject.getString("status").equalsIgnoreCase("ok"))
+            {
+                JSONArray results = jsonObject.getJSONArray("results");
+                if (results.length() > 1)
+                {
+                    log.info("Found more than one result for: " + locationDescription + " choosing the first one");
+                }
+                JSONObject result = results.getJSONObject(0);
+                JSONObject geometry = result.getJSONObject("geometry");
+                JSONObject locationObject = geometry.getJSONObject("location");
+                String latitude = locationObject.getString("lat");
+                String longitude = locationObject.getString("lng");
+                location = new GeoPt(Float.parseFloat(latitude), Float.parseFloat(longitude));
+
+            } else
+            {
+                log.info("couldn't get a location for: " + locationDescription + " the returned json was: \n" + jsonObject.toString(2));
+            }
 
         } catch (IOException e)
         {
             log.log(Level.INFO, "getlocation failed: " + e.getMessage(), e);
+        } catch (JSONException e)
+        {
+            log.log(Level.WARNING, "error parsing json: " + e.getMessage(), e);
         }
 
-        Float latitude = 0F, longitude = 0F;
-        GeoPt location = new GeoPt(latitude, longitude);
-        return null;
+        return location;
     }
 
     private ReportType getTypeFromTitle(String string)
